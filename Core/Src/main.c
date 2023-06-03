@@ -20,6 +20,7 @@
 #include "main.h"
 #include "usart.h"
 #include "gpio.h"
+#include "EventRecorder.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -40,6 +41,7 @@
 #define LED_B_OFF()    	HAL_GPIO_WritePin(LED_B_PORT, LED_B_PIN, GPIO_PIN_SET)
 #define LED_B_TOGGLE()	HAL_GPIO_TogglePin(LED_B_PORT, LED_B_PIN)
 
+#define EventRecorder_ENABLE
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -81,7 +83,6 @@ static void vtor_config(void)
     __set_PRIMASK(0);
 }
 
-uint32_t testValue __attribute__((section(".RAM_SDRAM")));
 /* USER CODE END 0 */
 
 /**
@@ -120,7 +121,10 @@ int main(void)
     MX_GPIO_Init();
     MX_UART4_Init();
     /* USER CODE BEGIN 2 */
-
+#ifdef EventRecorder_ENABLE
+	EventRecorderInitialize(EventRecordAll, 1U);
+	EventRecorderStart();
+#endif
     /* USER CODE END 2 */
 
     /* Infinite loop */
@@ -128,8 +132,7 @@ int main(void)
     while (1)
     {
         HAL_Delay(1000);
-        testValue++;
-        printf("test: %d\r\n", testValue);
+		printf("test\r\n");
         LED_B_TOGGLE();
         /* USER CODE END WHILE */
 
@@ -203,6 +206,7 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 /* ------------------通过重定向将printf函数映射到串口1上-------------------*/
+#ifndef EventRecorder_ENABLE
 #if !defined(__MICROLIB)
 
 //#pragma import(__use_no_semihosting)
@@ -235,6 +239,7 @@ PUTCHAR_PROTOTYPE
     HAL_UART_Transmit(&huart4, (uint8_t *)&ch, 1, 1000);
     return ch;
 }
+#endif
 /* USER CODE END 4 */
 
 /**
