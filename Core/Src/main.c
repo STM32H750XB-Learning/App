@@ -39,6 +39,7 @@
 #define LED_B_ON()     	HAL_GPIO_WritePin(LED_B_PORT, LED_B_PIN, GPIO_PIN_RESET)
 #define LED_B_OFF()    	HAL_GPIO_WritePin(LED_B_PORT, LED_B_PIN, GPIO_PIN_SET)
 #define LED_B_TOGGLE()	HAL_GPIO_TogglePin(LED_B_PORT, LED_B_PIN)
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -59,7 +60,6 @@
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
-static void MPU_Config(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -80,6 +80,8 @@ static void vtor_config(void)
     __enable_irq();
     __set_PRIMASK(0);
 }
+
+uint32_t testValue __attribute__((section(".RAM_SDRAM")));
 /* USER CODE END 0 */
 
 /**
@@ -91,9 +93,6 @@ int main(void)
     /* USER CODE BEGIN 1 */
     vtor_config();
     /* USER CODE END 1 */
-
-    /* MPU Configuration--------------------------------------------------------*/
-    MPU_Config();
 
     /* Enable I-Cache---------------------------------------------------------*/
     SCB_EnableICache();
@@ -129,7 +128,9 @@ int main(void)
     while (1)
     {
         HAL_Delay(1000);
-		LED_B_TOGGLE();
+        testValue++;
+        printf("test: %d\r\n", testValue);
+        LED_B_TOGGLE();
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
@@ -235,59 +236,6 @@ PUTCHAR_PROTOTYPE
     return ch;
 }
 /* USER CODE END 4 */
-
-/* MPU Configuration */
-
-void MPU_Config(void)
-{
-    MPU_Region_InitTypeDef MPU_InitStruct = {0};
-
-    /* Disables the MPU */
-    HAL_MPU_Disable();
-
-    /** Initializes and configures the Region and the memory to be protected
-    */
-    MPU_InitStruct.Enable = MPU_REGION_ENABLE;
-    MPU_InitStruct.Number = MPU_REGION_NUMBER0;
-    MPU_InitStruct.BaseAddress = 0x0;
-    MPU_InitStruct.Size = MPU_REGION_SIZE_4GB;
-    MPU_InitStruct.SubRegionDisable = 0x87;
-    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
-    MPU_InitStruct.AccessPermission = MPU_REGION_NO_ACCESS;
-    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_DISABLE;
-    MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
-    MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-    MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-
-    HAL_MPU_ConfigRegion(&MPU_InitStruct);
-
-    /** Initializes and configures the Region and the memory to be protected
-    */
-    MPU_InitStruct.Number = MPU_REGION_NUMBER1;
-    MPU_InitStruct.BaseAddress = 0x90000000;
-    MPU_InitStruct.Size = MPU_REGION_SIZE_256MB;
-    MPU_InitStruct.SubRegionDisable = 0x0;
-    MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
-    MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
-    MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
-    MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
-    MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
-
-    HAL_MPU_ConfigRegion(&MPU_InitStruct);
-
-    /** Initializes and configures the Region and the memory to be protected
-    */
-    MPU_InitStruct.Number = MPU_REGION_NUMBER3;
-    MPU_InitStruct.BaseAddress = 0x24000000;
-    MPU_InitStruct.Size = MPU_REGION_SIZE_512KB;
-    MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
-    MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
-
-    HAL_MPU_ConfigRegion(&MPU_InitStruct);
-    /* Enables the MPU */
-    HAL_MPU_Enable(MPU_HFNMI_PRIVDEF);
-
-}
 
 /**
   * @brief  This function is executed in case of error occurrence.
