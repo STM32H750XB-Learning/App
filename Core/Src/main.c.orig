@@ -24,22 +24,11 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
+#include "EventRecorder.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#define LED_R_PORT    	GPIOC
-#define LED_R_PIN      	GPIO_PIN_15
-#define LED_R_ON()     	HAL_GPIO_WritePin(LED_R_PORT, LED_R_PIN, GPIO_PIN_RESET)
-#define LED_R_OFF()    	HAL_GPIO_WritePin(LED_R_PORT, LED_R_PIN, GPIO_PIN_SET)
-#define LED_R_TOGGLE()	HAL_GPIO_TogglePin(LED_R_PORT, LED_R_PIN)
-
-#define LED_B_PORT     	GPIOI
-#define LED_B_PIN      	GPIO_PIN_8
-#define LED_B_ON()     	HAL_GPIO_WritePin(LED_B_PORT, LED_B_PIN, GPIO_PIN_RESET)
-#define LED_B_OFF()    	HAL_GPIO_WritePin(LED_B_PORT, LED_B_PIN, GPIO_PIN_SET)
-#define LED_B_TOGGLE()	HAL_GPIO_TogglePin(LED_B_PORT, LED_B_PIN)
-
 
 /* USER CODE END PTD */
 
@@ -61,6 +50,7 @@
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+static void MPU_Config(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -82,7 +72,14 @@ static void vtor_config(void)
     __set_PRIMASK(0);
 }
 
-uint32_t testValue __attribute__((section(".RAM_SDRAM")));
+static void dwt_init(void)
+{
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+    DWT->CYCCNT = (uint32_t)0u;
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+}
+
+__attribute__((section(".SDRAM")))	uint16_t test[4096];
 /* USER CODE END 0 */
 
 /**
@@ -93,7 +90,11 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
     vtor_config();
+    dwt_init();
   /* USER CODE END 1 */
+
+  /* MPU Configuration--------------------------------------------------------*/
+  MPU_Config();
 
   /* Enable I-Cache---------------------------------------------------------*/
   SCB_EnableICache();
@@ -121,7 +122,17 @@ int main(void)
   MX_GPIO_Init();
   MX_UART4_Init();
   /* USER CODE BEGIN 2 */
+#ifdef EventRecorder_ENABLE
+    EventRecorderInitialize(EventRecordAll, 1U);
+    EventRecorderStart();
+#endif
 
+	for(int i = 0; i < 4096; ++i)	test[i] = 4096 - i;
+	for(int i = 0; i < 4096; ++i)
+	{
+		printf("%04d ", test[i]);
+		if((i + 1) % 8 == 0)	printf("\r\n");
+	}
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -129,9 +140,8 @@ int main(void)
     while (1)
     {
         HAL_Delay(1000);
-        testValue++;
-        printf("test: %d\r\n", testValue);
         LED_B_TOGGLE();
+        printf("Looping\r\n");
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -204,6 +214,7 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 /* ------------------通过重定向将printf函数映射到串口1上-------------------*/
+#ifndef EventRecorder_ENABLE
 #if !defined(__MICROLIB)
 
 //#pragma import(__use_no_semihosting)
@@ -236,7 +247,92 @@ PUTCHAR_PROTOTYPE
     HAL_UART_Transmit(&huart4, (uint8_t *)&ch, 1, 1000);
     return ch;
 }
+#endif
 /* USER CODE END 4 */
+
+/* MPU Configuration */
+
+void MPU_Config(void)
+{
+  MPU_Region_InitTypeDef MPU_InitStruct = {0};
+
+  /* Disables the MPU */
+  HAL_MPU_Disable();
+
+  /** Initializes and configures the Region and the memory to be protected
+  */
+  MPU_InitStruct.Enable = MPU_REGION_ENABLE;
+  MPU_InitStruct.Number = MPU_REGION_NUMBER0;
+  MPU_InitStruct.BaseAddress = 0x90000000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_256MB;
+  MPU_InitStruct.SubRegionDisable = 0x0;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
+  MPU_InitStruct.AccessPermission = MPU_REGION_FULL_ACCESS;
+  MPU_InitStruct.DisableExec = MPU_INSTRUCTION_ACCESS_ENABLE;
+  MPU_InitStruct.IsShareable = MPU_ACCESS_NOT_SHAREABLE;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  /** Initializes and configures the Region and the memory to be protected
+  */
+  MPU_InitStruct.Number = MPU_REGION_NUMBER1;
+  MPU_InitStruct.BaseAddress = 0x24000000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_512KB;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_NOT_BUFFERABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  /** Initializes and configures the Region and the memory to be protected
+  */
+  MPU_InitStruct.Number = MPU_REGION_NUMBER2;
+  MPU_InitStruct.BaseAddress = 0xC0000000;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+  MPU_InitStruct.IsBufferable = MPU_ACCESS_BUFFERABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  /** Initializes and configures the Region and the memory to be protected
+  */
+  MPU_InitStruct.Number = MPU_REGION_NUMBER3;
+  MPU_InitStruct.BaseAddress = 0x60000000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_64KB;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL0;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_NOT_CACHEABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  /** Initializes and configures the Region and the memory to be protected
+  */
+  MPU_InitStruct.Number = MPU_REGION_NUMBER4;
+  MPU_InitStruct.BaseAddress = 0x30000000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_256KB;
+  MPU_InitStruct.TypeExtField = MPU_TEX_LEVEL1;
+  MPU_InitStruct.IsCacheable = MPU_ACCESS_CACHEABLE;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  /** Initializes and configures the Region and the memory to be protected
+  */
+  MPU_InitStruct.Number = MPU_REGION_NUMBER5;
+  MPU_InitStruct.BaseAddress = 0x30040000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_32KB;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+
+  /** Initializes and configures the Region and the memory to be protected
+  */
+  MPU_InitStruct.Number = MPU_REGION_NUMBER6;
+  MPU_InitStruct.BaseAddress = 0x38000000;
+  MPU_InitStruct.Size = MPU_REGION_SIZE_64KB;
+
+  HAL_MPU_ConfigRegion(&MPU_InitStruct);
+  /* Enables the MPU */
+  HAL_MPU_Enable(MPU_HFNMI_PRIVDEF);
+
+}
 
 /**
   * @brief  This function is executed in case of error occurrence.

@@ -59,7 +59,17 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 
 /* USER CODE BEGIN Private defines */
+#define LED_R_PORT    	GPIOC
+#define LED_R_PIN      	GPIO_PIN_15
+#define LED_R_ON()     	HAL_GPIO_WritePin(LED_R_PORT, LED_R_PIN, GPIO_PIN_RESET)
+#define LED_R_OFF()    	HAL_GPIO_WritePin(LED_R_PORT, LED_R_PIN, GPIO_PIN_SET)
+#define LED_R_TOGGLE()	HAL_GPIO_TogglePin(LED_R_PORT, LED_R_PIN)
 
+#define LED_B_PORT     	GPIOI
+#define LED_B_PIN      	GPIO_PIN_8
+#define LED_B_ON()     	HAL_GPIO_WritePin(LED_B_PORT, LED_B_PIN, GPIO_PIN_RESET)
+#define LED_B_OFF()    	HAL_GPIO_WritePin(LED_B_PORT, LED_B_PIN, GPIO_PIN_SET)
+#define LED_B_TOGGLE()	HAL_GPIO_TogglePin(LED_B_PORT, LED_B_PIN)
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
